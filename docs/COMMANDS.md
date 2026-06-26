@@ -92,7 +92,7 @@ Find markets by keyword (searches events and their markets).
 | Option / Arg | Req | Default | Meaning |
 |---|---|---|---|
 | `<QUERY>` | **required** | — | Keyword, e.g. `"world cup"`. |
-| `--limit INT` | optional | `10` | Max results. |
+| `--limit INT` | optional | `20` | Max results. |
 
 ```bash
 poly markets search "world cup"

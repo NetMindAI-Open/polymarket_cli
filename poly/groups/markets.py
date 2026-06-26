@@ -29,7 +29,7 @@ def _market_row(market) -> dict:
 
 
 @app.command()
-def search(ctx: typer.Context, query: str = typer.Argument(...), limit: int = 10) -> None:
+def search(ctx: typer.Context, query: str = typer.Argument(...), limit: int = 20) -> None:
     """Find markets by keyword. ``--limit`` caps the number of markets shown.
 
     Each matched event contains several markets, so we fetch the matching events
