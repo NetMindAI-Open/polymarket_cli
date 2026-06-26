@@ -4,12 +4,14 @@ import typer
 from .context import CliContext
 from .groups import wallet
 from .groups import setup as setup_group
+from .groups import clob_trade
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="Polymarket CLI.")
 _OUTPUT = {"fmt": "table"}  # mirrored for main()'s error envelope
 
 app.add_typer(wallet.app, name="wallet")
 app.command("setup")(setup_group.setup_cmd)
+app.add_typer(clob_trade.app, name="clob")
 
 
 @app.callback()

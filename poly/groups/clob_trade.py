@@ -1,0 +1,184 @@
+# poly/groups/clob_trade.py
+"""CLOB trading and account read commands."""
+
+import typer
+from .. import context as _context
+from ..output import emit
+from ..pagination import collect
+from ..orders import normalize_side, build_signed_limit_order, describe_response
+from .. import trade
+
+app = typer.Typer(no_args_is_help=True, help="CLOB trading and account reads.")
+
+
+def _fmt(ctx: typer.Context) -> str:
+    return ctx.obj.output
+
+
+def _pub(ctx):
+    return _context.public(ctx)
+
+
+def _sec(ctx):
+    return _context.secure(ctx)
+
+
+@app.command("create-order")
+def create_order(
+    ctx: typer.Context,
+    token: str = typer.Option(None, "--token", "--token-id"),
+    slug: str = typer.Option(None),
+    url: str = typer.Option(None),
+    outcome: str = typer.Option("yes"),
+    side: str = typer.Option(..., "--side"),
+    price: str = typer.Option(..., "--price"),
+    size: str = typer.Option(None),
+    usd: str = typer.Option(None),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+    yes: bool = typer.Option(False, "--yes"),
+) -> None:
+    """Place a limit order."""
+    pub = _pub(ctx)
+    target, plan = trade.build_plan(
+        side=normalize_side(side), market_order=False, token_id=token,
+        slug=slug, url=url, outcome=outcome, usd=usd, size=size, price=price, pub=pub,
+    )
+    raise typer.Exit(trade.run(
+        ctx, pub=pub, secure_factory=lambda: _sec(ctx),
+        target=target, plan=plan, dry_run=dry_run, yes=yes,
+    ))
+
+
+@app.command("market-order")
+def market_order(
+    ctx: typer.Context,
+    token: str = typer.Option(None, "--token", "--token-id"),
+    slug: str = typer.Option(None),
+    url: str = typer.Option(None),
+    outcome: str = typer.Option("yes"),
+    side: str = typer.Option(..., "--side"),
+    usd: str = typer.Option(None),
+    size: str = typer.Option(None),
+    max_spend: str = typer.Option(None, "--max-spend"),
+    order_type: str = typer.Option(None, "--order-type"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+    yes: bool = typer.Option(False, "--yes"),
+) -> None:
+    """Place a market order (FAK/FOK)."""
+    pub = _pub(ctx)
+    target, plan = trade.build_plan(
+        side=normalize_side(side), market_order=True, token_id=token,
+        slug=slug, url=url, outcome=outcome, usd=usd, size=size,
+        max_spend=max_spend, order_type=order_type, pub=pub,
+    )
+    raise typer.Exit(trade.run(
+        ctx, pub=pub, secure_factory=lambda: _sec(ctx),
+        target=target, plan=plan, dry_run=dry_run, yes=yes,
+    ))
+
+
+@app.command("post-orders")
+def post_orders(
+    ctx: typer.Context,
+    tokens: str = typer.Option(..., "--tokens", help="Comma-separated token IDs."),
+    side: str = typer.Option(..., "--side"),
+    prices: str = typer.Option(..., "--prices", help="Comma-separated prices."),
+    sizes: str = typer.Option(..., "--sizes", help="Comma-separated sizes."),
+) -> None:
+    """Build and post multiple limit orders in one call."""
+    client = _sec(ctx)
+    token_list = tokens.split(",")
+    price_list = prices.split(",")
+    size_list = sizes.split(",")
+    s = normalize_side(side)
+    signed_orders = [
+        build_signed_limit_order(client, token_id=t.strip(), price=p.strip(), size=sz.strip(), side=s)
+        for t, p, sz in zip(token_list, price_list, size_list)
+    ]
+    results = client.post_orders(signed_orders)
+    emit(_fmt(ctx), [describe_response(r) for r in results])
+
+
+@app.command("cancel")
+def cancel(
+    ctx: typer.Context,
+    order_id: str = typer.Argument(...),
+) -> None:
+    """Cancel a single order by ID."""
+    emit(_fmt(ctx), _sec(ctx).cancel_order(order_id=order_id))
+
+
+@app.command("cancel-orders")
+def cancel_orders(
+    ctx: typer.Context,
+    ids: str = typer.Argument(..., help="Comma-separated order IDs."),
+) -> None:
+    """Cancel multiple orders by ID."""
+    emit(_fmt(ctx), _sec(ctx).cancel_orders(order_ids=ids.split(",")))
+
+
+@app.command("cancel-market")
+def cancel_market(
+    ctx: typer.Context,
+    market: str = typer.Option(..., "--market"),
+) -> None:
+    """Cancel all orders for a specific market."""
+    emit(_fmt(ctx), _sec(ctx).cancel_market_orders(market=market))
+
+
+@app.command("cancel-all")
+def cancel_all(ctx: typer.Context, yes: bool = typer.Option(False, "--yes")) -> None:
+    """Cancel ALL open orders (requires typed-YES confirmation)."""
+    if not yes:
+        try:
+            answer = input('This cancels ALL open orders. Type "YES" to confirm: ')
+        except EOFError:
+            answer = ""
+        if answer.strip() != "YES":
+            emit(_fmt(ctx), {"aborted": True})
+            raise typer.Exit(1)
+    emit(_fmt(ctx), _sec(ctx).cancel_all())
+
+
+@app.command("orders")
+def orders(ctx: typer.Context, market: str = typer.Option(None)) -> None:
+    """List your open orders."""
+    client = _sec(ctx)
+    paginator = client.list_open_orders(market=market) if market else client.list_open_orders()
+    emit(_fmt(ctx), collect(paginator))
+
+
+@app.command("order")
+def order(ctx: typer.Context, order_id: str = typer.Argument(...)) -> None:
+    """Get details of a single order."""
+    emit(_fmt(ctx), _sec(ctx).get_order(order_id=order_id))
+
+
+@app.command("trades")
+def trades(ctx: typer.Context) -> None:
+    """List your account trades."""
+    emit(_fmt(ctx), collect(_sec(ctx).list_account_trades()))
+
+
+@app.command("balance")
+def balance(
+    ctx: typer.Context,
+    asset_type: str = typer.Option(..., "--asset-type", help="collateral or conditional"),
+    token: str = typer.Option(None, "--token"),
+) -> None:
+    """Show balance and allowance for an asset type."""
+    emit(_fmt(ctx), _sec(ctx).get_balance_allowance(
+        asset_type=asset_type.upper(), token_id=token,
+    ))
+
+
+@app.command("update-balance")
+def update_balance(
+    ctx: typer.Context,
+    asset_type: str = typer.Option(..., "--asset-type", help="collateral or conditional"),
+    token: str = typer.Option(None, "--token"),
+) -> None:
+    """Re-read balance/allowance (the SDK refreshes internally on order placement)."""
+    emit(_fmt(ctx), _sec(ctx).get_balance_allowance(
+        asset_type=asset_type.upper(), token_id=token,
+    ))
