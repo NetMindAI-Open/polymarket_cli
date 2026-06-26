@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-25
 **Status:** Approved (design); ready for implementation planning
-**Repo:** `polymarket_cli` (github.com/johnsonice/polymarket_cli)
+**Repo:** `polymarket_cli` (github.com/NetMindAI-Open/polymarket_cli)
 **Supersedes the structure of:** `2026-06-25-poly-cli-design.md` (the original buy/sell-only tool)
 
 ---

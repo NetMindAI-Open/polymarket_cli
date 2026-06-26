@@ -39,13 +39,13 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 Install straight from GitHub — no clone needed — and get a `poly` command available everywhere:
 
 ```bash
-uv tool install git+https://github.com/johnsonice/polymarket_cli.git
+uv tool install git+https://github.com/NetMindAI-Open/polymarket_cli.git
 ```
 
 Or from a local clone:
 
 ```bash
-git clone https://github.com/johnsonice/polymarket_cli.git
+git clone https://github.com/NetMindAI-Open/polymarket_cli.git
 cd polymarket_cli
 uv tool install .          # add --editable to track your local source changes live
 ```
@@ -64,7 +64,7 @@ poly --help
 ### Option B — run from source (for development)
 
 ```bash
-git clone https://github.com/johnsonice/polymarket_cli.git
+git clone https://github.com/NetMindAI-Open/polymarket_cli.git
 cd polymarket_cli
 uv sync --extra dev        # creates .venv with dev deps
 uv run poly --help
