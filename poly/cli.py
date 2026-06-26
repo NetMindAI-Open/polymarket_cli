@@ -2,9 +2,12 @@
 import typer
 
 from .context import CliContext
+from .groups import wallet
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="Polymarket CLI.")
 _OUTPUT = {"fmt": "table"}  # mirrored for main()'s error envelope
+
+app.add_typer(wallet.app, name="wallet")
 
 
 @app.callback()
