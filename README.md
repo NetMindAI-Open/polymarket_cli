@@ -23,7 +23,7 @@ uv run poly setup --private-key 0x...
 # or: set POLYMARKET_PRIVATE_KEY=0x... in the environment
 ```
 
-**The project `.env` file is no longer read.** Key resolution order: `--private-key` flag > `POLYMARKET_PRIVATE_KEY` env > `~/.config/polymarket/config.json`.
+**The project `.env` file is not read.** Key resolution order: `--private-key` flag > `POLYMARKET_PRIVATE_KEY` env > `~/.config/polymarket/config.json`.
 
 ## Command Structure
 
@@ -33,7 +33,7 @@ poly [OPTIONS] COMMAND [ARGS]...
 Global options:
   -o, --output table|json    Output format (default: table)
   --private-key TEXT         Override the signer key for this run
-  --signature-type INT       Signature type 0/1/2/3 (default 3 = deposit wallet)
+  --wallet TEXT              Override the wallet address for this run
 
 Command groups:
   setup       Configure your signer key
@@ -43,6 +43,9 @@ Command groups:
   clob        CLOB trading and account reads
   data        On-chain portfolio data (positions, value)
 ```
+
+Note: `--signature-type` was intentionally removed. The SDK derives the deposit wallet
+(type 3 / POLY_1271) deterministically from the private key; this path is not configurable.
 
 ## Usage
 
@@ -91,6 +94,9 @@ uv run poly wallet show
 | `clob trades` | List account trades |
 | `clob balance` | Get balance/allowance |
 
+Note: `clob update-balance` was intentionally removed — it was a duplicate of `clob balance`
+and the SDK has no distinct "refresh balance" endpoint.
+
 ### Flags (buy / sell / clob create-order)
 
 | Flag | Meaning |
@@ -104,6 +110,7 @@ uv run poly wallet show
 | `--max-spend` | Market BUY only: fee-inclusive USD cap (defaults to `--usd`). |
 | `--dry-run` | Build + sign locally, print details, do **not** submit. |
 | `--yes` | Skip the typed-`YES` confirmation. |
+| `--wallet` | Trade from a non-default wallet address (passed to the SDK). |
 
 > **Market order semantics** mirror the SDK: a market **BUY** spends a USD `amount`
 > (use `--usd`), a market **SELL** delivers `shares` (use `--size`). Mixing them is

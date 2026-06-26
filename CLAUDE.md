@@ -47,9 +47,12 @@ the tool was built to avoid.
   for signing/submitting. Both are imported **lazily** inside `poly/config.py` so pure-logic tests don't pay
   the SDK import cost.
 - Auth is a single signer private key. The SDK **derives the deposit wallet** (signature type 3 / POLY_1271)
-  deterministically from it — this type-3 path is what the legacy client could not post.
+  deterministically from it — this is fixed and is not configurable. `--signature-type` was intentionally
+  removed because `SecureClient.create()` has no such parameter; the deposit-wallet derivation is the only
+  supported path.
 - Key resolution order: `--private-key` flag → `POLYMARKET_PRIVATE_KEY` env → `~/.config/polymarket/config.json`.
-  The project `.env` file is **not read**.
+  The project `.env` file is **not read**. There is no `.env.example`.
+- Use `--wallet <addr>` to trade from a non-default wallet address.
 
 ## Architecture (data flow per command)
 
@@ -67,7 +70,7 @@ The trading flow is:
 | `poly/orders.py` | Validation, sizing, tick rounding, and Decimal→string serialization. `build_signed_limit_order` / `build_signed_market_order` **sign without posting**; `post_signed_order` submits separately. Enforces SDK market-order semantics: BUY takes `amount` (USD), SELL takes `shares`. |
 | `poly/config.py` | `Settings` frozen dataclass (`private_key` marked `field(repr=False)` so tracebacks never leak it). `load_settings()` implements the key resolution order above. `build_public_client()` / `build_secure_client()`. |
 | `poly/output.py` | `emit(fmt, data)` — the only printing point; supports `table` and `json` output modes. |
-| `poly/groups/clob_trade.py` | `clob` Typer sub-app: `create-order`, `market-order` (detailed CLOB commands). |
+| `poly/groups/clob_trade.py` | `clob` Typer sub-app: `create-order`, `market-order`, `cancel`, `cancel-all`, `orders`, `order`, `trades`, `balance`. Note: `update-balance` was intentionally removed — it was a byte-for-byte duplicate of `balance` and the SDK has no distinct refresh. |
 | `poly/groups/wallet.py` | `wallet` sub-app: `show`, `import`, `balance`. |
 | `poly/groups/data.py` | `data` sub-app: `positions`, `value`. |
 | `poly/groups/setup.py` | `setup` command: interactive wizard that writes `~/.config/polymarket/config.json`. |
@@ -79,6 +82,7 @@ The trading flow is:
 - **Keep secrets out of `repr`.** When adding a secret to `Settings`, mark it `field(repr=False)`.
 - **Thin command bodies.** Each Typer command resolves a client via `context.public`/`context.secure`, calls
   one SDK or trade function, and emits output — no business logic inline.
+- **No mutation.** Config dicts are never mutated in place — use `{**existing, "key": value}` pattern.
 
 ## Testing approach
 
