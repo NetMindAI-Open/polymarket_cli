@@ -8,6 +8,7 @@
   <img alt="built on polymarket-client" src="https://img.shields.io/badge/built%20on-polymarket--client-6366f1">
   <img alt="status beta" src="https://img.shields.io/badge/status-beta-f59e0b">
   <img alt="tests 114 passing" src="https://img.shields.io/badge/tests-114%20passing-22c55e">
+  <img alt="license MIT" src="https://img.shields.io/badge/license-MIT-blue">
 </p>
 
 <p align="center">
