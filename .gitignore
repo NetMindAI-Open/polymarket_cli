@@ -1,5 +1,9 @@
 # Secrets — never commit
 .env
+# a real key may live here if copied from config.example.json
+config.json
+
+docs/superpowers/
 
 # Python
 __pycache__/
