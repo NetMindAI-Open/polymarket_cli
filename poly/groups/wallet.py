@@ -17,9 +17,7 @@ def _fmt(ctx: typer.Context) -> str:
 
 def _store_key(key: str) -> str:
     key = key if key.startswith("0x") else "0x" + key
-    cfg = load_config(path=CONFIG_PATH)
-    cfg["private_key"] = key
-    save_config(cfg, path=CONFIG_PATH)
+    save_config({**load_config(path=CONFIG_PATH), "private_key": key}, path=CONFIG_PATH)
     return Account.from_key(key).address
 
 
@@ -46,7 +44,7 @@ def show(ctx: typer.Context) -> None:
     cfg = load_config(path=CONFIG_PATH)
     key = cfg.get("private_key")
     addr = Account.from_key(key).address if key else None
-    emit(_fmt(ctx), {"address": addr, "signature_type": cfg.get("signature_type", 3), "config": str(CONFIG_PATH)})
+    emit(_fmt(ctx), {"address": addr, "config": str(CONFIG_PATH)})
 
 
 @app.command()

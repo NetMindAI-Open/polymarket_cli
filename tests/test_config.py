@@ -12,7 +12,7 @@ def test_resolve_prefers_flag_then_env_then_config():
 
 def test_save_config_is_chmod_600(tmp_path):
     p = tmp_path / "config.json"
-    config.save_config({"private_key": "0xabc", "signature_type": 3}, path=p)
+    config.save_config({"private_key": "0xabc"}, path=p)
     assert json.loads(p.read_text())["private_key"] == "0xabc"
     assert (p.stat().st_mode & 0o777) == 0o600
 
@@ -23,9 +23,17 @@ def test_load_settings_requires_key(tmp_path, monkeypatch):
         config.load_settings(path=tmp_path / "missing.json")
 
 
-def test_load_settings_normalizes_0x_and_defaults_type(tmp_path):
+def test_load_settings_normalizes_0x_prefix(tmp_path):
     p = tmp_path / "config.json"
     config.save_config({"private_key": "abc"}, path=p)
     s = config.load_settings(path=p)
     assert s.private_key == "0xabc"
-    assert s.signature_type == 3
+
+
+def test_load_settings_ignores_stale_signature_type(tmp_path, monkeypatch):
+    """A config with a non-integer 'signature_type' value must not raise."""
+    monkeypatch.delenv("POLYMARKET_PRIVATE_KEY", raising=False)
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps({"private_key": "0xabc", "signature_type": "proxy"}))
+    s = config.load_settings(path=p)
+    assert s.private_key == "0xabc"

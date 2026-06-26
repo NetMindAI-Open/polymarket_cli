@@ -2,6 +2,10 @@
 
 Key resolution order: --private-key flag > POLYMARKET_PRIVATE_KEY env >
 ~/.config/polymarket/config.json. The project .env is intentionally NOT read.
+
+Note: --signature-type was intentionally removed. The SDK derives the deposit
+wallet (type-3 / POLY_1271) deterministically from the private key; no other
+signature type is supported via SecureClient.create().
 """
 
 import json
@@ -11,33 +15,37 @@ from pathlib import Path
 
 _CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config"))
 CONFIG_PATH = _CONFIG_HOME / "polymarket" / "config.json"
-DEFAULT_SIGNATURE_TYPE = 3
 
 
 @dataclass(frozen=True)
 class Settings:
     private_key: str = field(repr=False)
-    signature_type: int = DEFAULT_SIGNATURE_TYPE
     wallet_address: str | None = None
 
 
-def load_config(path: Path = CONFIG_PATH) -> dict:
+def load_config(path: Path | None = None) -> dict:
+    """Load config JSON from *path* (default: module-level CONFIG_PATH).
+
+    Using None as the default lets callers and tests patch the module-level
+    CONFIG_PATH and have the change take effect without passing path= explicitly.
+    """
+    p = path if path is not None else CONFIG_PATH
     try:
-        return json.loads(Path(path).read_text())
+        return json.loads(Path(p).read_text())
     except FileNotFoundError:
         return {}
     except json.JSONDecodeError as exc:
-        raise SystemExit(f"Config file {path} is not valid JSON: {exc}")
+        raise SystemExit(f"Config file {p} is not valid JSON: {exc}")
 
 
-def save_config(data: dict, path: Path = CONFIG_PATH) -> None:
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2))
-    path.chmod(0o600)
+def save_config(data: dict, path: Path | None = None) -> None:
+    p = Path(path) if path is not None else Path(CONFIG_PATH)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data, indent=2))
+    p.chmod(0o600)
 
 
-def resolve_private_key(flag=None, env=None, config=None) -> str | None:
+def resolve_private_key(flag: str | None = None, env: str | None = None, config: str | None = None) -> str | None:
     return flag or env or config or None
 
 
@@ -46,7 +54,12 @@ def _normalize_key(key: str) -> str:
     return key if key.startswith("0x") else "0x" + key
 
 
-def load_settings(*, private_key=None, signature_type=None, path: Path = CONFIG_PATH) -> Settings:
+def load_settings(*, private_key: str | None = None, path: Path | None = None) -> Settings:
+    """Load and validate settings.
+
+    *path* defaults to the module-level CONFIG_PATH so that tests can patch it
+    via ``monkeypatch.setattr(config, "CONFIG_PATH", ...)``.
+    """
     cfg = load_config(path)
     key = resolve_private_key(
         flag=private_key,
@@ -58,8 +71,9 @@ def load_settings(*, private_key=None, signature_type=None, path: Path = CONFIG_
             "No private key configured. Run `poly setup` or `poly wallet import 0x...`, "
             "or pass --private-key / set POLYMARKET_PRIVATE_KEY."
         )
-    sig = signature_type if signature_type is not None else int(cfg.get("signature_type", DEFAULT_SIGNATURE_TYPE))
-    return Settings(private_key=_normalize_key(key), signature_type=sig, wallet_address=cfg.get("wallet_address"))
+    # Ignore any stale "signature_type" key — the SDK supports only the
+    # deposit-wallet derivation and has no signature_type parameter.
+    return Settings(private_key=_normalize_key(key), wallet_address=cfg.get("wallet_address"))
 
 
 def build_public_client():

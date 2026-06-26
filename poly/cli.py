@@ -21,12 +21,11 @@ def root(
     ctx: typer.Context,
     output: str = typer.Option("table", "--output", "-o", help="table or json"),
     private_key: str = typer.Option(None, "--private-key", help="Override signer key."),
-    signature_type: int = typer.Option(None, "--signature-type", help="0/1/2/3 (default 3)."),
 ) -> None:
     if output not in ("table", "json"):
         raise typer.BadParameter("--output must be 'table' or 'json'")
     _OUTPUT["fmt"] = output
-    ctx.obj = CliContext(output=output, private_key=private_key, signature_type=signature_type)
+    ctx.obj = CliContext(output=output, private_key=private_key)
 
 
 def _trade_alias(ctx, side, *, token_id, slug, url, outcome, usd, size, price, market, max_spend, dry_run, yes):

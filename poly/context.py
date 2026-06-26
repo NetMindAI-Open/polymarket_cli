@@ -9,7 +9,6 @@ from . import config
 class CliContext:
     output: str = "table"
     private_key: str | None = field(default=None, repr=False)
-    signature_type: int | None = None
     _public: object = None
     _secure: object = None
 
@@ -30,6 +29,6 @@ def public(ctx: typer.Context):
 def secure(ctx: typer.Context):
     c = _ctx(ctx)
     if c._secure is None:
-        settings = config.load_settings(private_key=c.private_key, signature_type=c.signature_type)
+        settings = config.load_settings(private_key=c.private_key)
         c._secure = config.build_secure_client(settings)
     return c._secure
