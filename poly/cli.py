@@ -27,10 +27,41 @@ def root(
     ctx.obj = CliContext(output=output, private_key=private_key, signature_type=signature_type)
 
 
+def _trade_alias(ctx, side, *, token_id, slug, url, outcome, usd, size, price, market, max_spend, dry_run, yes):
+    from .context import public, secure
+    from . import trade
+    pub = public(ctx)
+    target, plan = trade.build_plan(side=side, market_order=market, token_id=token_id, slug=slug,
+                                    url=url, outcome=outcome, usd=usd, size=size, price=price,
+                                    max_spend=max_spend, pub=pub)
+    raise typer.Exit(trade.run(ctx, pub=pub, secure_factory=lambda: secure(ctx),
+                               target=target, plan=plan, dry_run=dry_run, yes=yes))
+
+
 @app.command()
-def buy() -> None:
-    """Buy an outcome (implemented in Task 10)."""
-    raise typer.Exit(0)
+def buy(ctx: typer.Context,
+        token_id: str = typer.Option(None, "--token-id", "--token"),
+        slug: str = typer.Option(None), url: str = typer.Option(None),
+        outcome: str = typer.Option("yes"), usd: str = typer.Option(None), size: str = typer.Option(None),
+        price: str = typer.Option(None), market: bool = typer.Option(False, "--market"),
+        max_spend: str = typer.Option(None, "--max-spend"),
+        dry_run: bool = typer.Option(False, "--dry-run"), yes: bool = typer.Option(False, "--yes")) -> None:
+    """Buy an outcome (friendly alias for clob create-order/market-order)."""
+    _trade_alias(ctx, "BUY", token_id=token_id, slug=slug, url=url, outcome=outcome, usd=usd,
+                 size=size, price=price, market=market, max_spend=max_spend, dry_run=dry_run, yes=yes)
+
+
+@app.command()
+def sell(ctx: typer.Context,
+         token_id: str = typer.Option(None, "--token-id", "--token"),
+         slug: str = typer.Option(None), url: str = typer.Option(None),
+         outcome: str = typer.Option("yes"), usd: str = typer.Option(None), size: str = typer.Option(None),
+         price: str = typer.Option(None), market: bool = typer.Option(False, "--market"),
+         max_spend: str = typer.Option(None, "--max-spend"),
+         dry_run: bool = typer.Option(False, "--dry-run"), yes: bool = typer.Option(False, "--yes")) -> None:
+    """Sell an outcome."""
+    _trade_alias(ctx, "SELL", token_id=token_id, slug=slug, url=url, outcome=outcome, usd=usd,
+                 size=size, price=price, market=market, max_spend=max_spend, dry_run=dry_run, yes=yes)
 
 
 def main() -> int:
