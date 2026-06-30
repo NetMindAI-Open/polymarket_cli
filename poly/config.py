@@ -8,6 +8,7 @@ wallet (type-3 / POLY_1271) deterministically from the private key; no other
 signature type is supported via SecureClient.create().
 """
 
+import dataclasses
 import json
 import os
 from dataclasses import dataclass, field
@@ -76,11 +77,41 @@ def load_settings(*, private_key: str | None = None, path: Path | None = None) -
     return Settings(private_key=_normalize_key(key), wallet_address=cfg.get("wallet_address"))
 
 
+# Base-URL overrides. If a POLYMARKET_*_URL env var is set, that host is pointed
+# at a custom endpoint (e.g. a regional 1:1 reverse proxy used to reach Polymarket
+# from an allowed region) while EVERYTHING ELSE in the environment — chain id and
+# all contract addresses — stays production. This is safe because orders are
+# EIP-712 signed over the production contracts; only the transport URL changes.
+# Unset => the official Polymarket endpoints (default behavior, unchanged).
+_URL_ENV = {
+    "clob_url": "POLYMARKET_CLOB_URL",
+    "gamma_url": "POLYMARKET_GAMMA_URL",
+    "data_url": "POLYMARKET_DATA_URL",
+    "relayer_url": "POLYMARKET_RELAYER_URL",
+    "rfq_url": "POLYMARKET_RFQ_URL",
+    "rpc_url": "POLYMARKET_RPC_URL",
+}
+
+
+def resolve_environment():
+    """Return the SDK Environment, with any per-host URL overrides from the
+    POLYMARKET_*_URL env vars applied on top of PRODUCTION. No env vars set
+    (the common case) returns PRODUCTION unchanged."""
+    from polymarket.environments import PRODUCTION
+
+    overrides = {field: os.environ[env] for field, env in _URL_ENV.items() if os.environ.get(env)}
+    return dataclasses.replace(PRODUCTION, **overrides) if overrides else PRODUCTION
+
+
 def build_public_client():
     from polymarket import PublicClient
-    return PublicClient()
+    return PublicClient(resolve_environment())
 
 
 def build_secure_client(settings: Settings):
     from polymarket import SecureClient
-    return SecureClient.create(private_key=settings.private_key, wallet=settings.wallet_address)
+    return SecureClient.create(
+        private_key=settings.private_key,
+        wallet=settings.wallet_address,
+        environment=resolve_environment(),
+    )
